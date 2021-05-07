@@ -1,143 +1,81 @@
 <?php
-/* Discord Oauth v.4.1
- * This file contains the core functions of the oauth2 script.
- * @author : MarkisDev
- * @copyright : https://markis.dev
- */
 
- # Starting session so we can store all the variables
-session_start();
+/* Home Page
+* The home page of the working demo of oauth2 script.
+* @author : MarkisDev
+* @copyright : https://markis.dev
+*/
 
-# Setting the base url for API requests
-$GLOBALS['base_url'] = "https://discord.com";
+# Enabling error display
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-# Setting bot token for related requests
-$GLOBALS['bot_token'] = null;
 
-# A function to generate a random string to be used as state | (protection against CSRF)
-function gen_state()
-{
-    $_SESSION['state'] = bin2hex(openssl_random_pseudo_bytes(12));
-    return $_SESSION['state'];
-}
+# Including all the required scripts for demo
+require __DIR__ . "/includes/functions.php";
+require __DIR__ . "/includes/discord.php";
+require __DIR__ . "/config.php";
 
-# A function to generate oAuth2 URL for logging in
-function url($clientid, $redirect, $scope)
-{
-    $state = gen_state();
-	return 'https://discordapp.com/oauth2/authorize?response_type=code&client_id=' . $clientid . '&redirect_uri=' . $redirect . '&scope=' . $scope . "&state=" . $state;
-}
-
-# A function to initialize and store access token in SESSION to be used for other requests
-function init($redirect_url, $client_id, $client_secret, $bot_token=null)
-{
-    if ($bot_token != null)    
-    $GLOBALS['bot_token'] = $bot_token;
-    $code = $_GET['code'];
-    $state = $_GET['state'];
-    # Check if $state == $_SESSION['state'] to verify if the login is legit | CHECK THE FUNCTION get_state($state) FOR MORE INFORMATION.
-    $url = $GLOBALS['base_url'] . "/api/oauth2/token";
-    $data = array(
-    "client_id" => $client_id,
-    "client_secret" => $client_secret,
-    "grant_type" => "authorization_code",
-    "code" => $code,
-    "redirect_uri" => $redirect_url
-    );
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_POST, true);
-    curl_setopt($curl, CURLOPT_POSTFIELDS, http_build_query($data));
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $results = json_decode($response, true);
-    $_SESSION['access_token'] = $results['access_token'];
-}
-
-# A function to get user information | (identify scope)
-function get_user()
-{
-    $url = $GLOBALS['base_url'] . "/api/users/@me";
-    $headers = array ('Content-Type: application/x-www-form-urlencoded', 'Authorization: Bearer ' . $_SESSION['access_token']);
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $results = json_decode($response, true);
-    $_SESSION['user'] = $results;
-    $_SESSION['username'] = $results['username'];
-    $_SESSION['discrim'] = $results['discriminator'];
-    $_SESSION['user_id'] = $results['id'];
-    $_SESSION['user_avatar'] = $results['avatar'];
-}
-
-# A function to get user guilds | (guilds scope)
-function get_guilds()
-{
-    $url = $GLOBALS['base_url'] . "/api/users/@me/guilds";
-    $headers = array ('Content-Type: application/x-www-form-urlencoded', 'Authorization: Bearer ' . $_SESSION['access_token']);
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $results = json_decode($response, true);
-    return $results;
-}
-
-# A function to fetch information on a single guild | (guilds scope)
-function get_guild($id)
-{
-    $url = $GLOBALS['base_url'] . "/api/guilds/$id";
-    $headers = array ('Content-Type: application/x-www-form-urlencoded', 'Authorization: Bearer ' . $_SESSION['access_token']);
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $results = json_decode($response, true);
-    return $results;
-}
-
-# Function to make user join a guild | (guilds.join scope)
-# Note : The bot has to be a member of the server with CREATE_INSTANT_INVITE permission.
-#        The bot DOES NOT have to be online, just has to be a bot application and has to be a member of the server.
-#        This is the basic function with no parameters, you can build on this to give the user a nickname, mute, deafen or assign a role.      
-function join_guild($guildid)
-{
-    $data = json_encode(array("access_token" => $_SESSION['access_token']));
-    $url = $GLOBALS['base_url'] . "/api/guilds/$guildid/members/" . $_SESSION['user_id'];
-    $headers = array ('Content-Type: application/json', 'Authorization: Bot ' . $GLOBALS['bot_token']);
-    $curl = curl_init();
-    curl_setopt($curl, CURLOPT_URL, $url);
-    curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($curl, CURLOPT_CUSTOMREQUEST, "PUT");
-    curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
-    curl_setopt($curl, CURLOPT_POSTFIELDS,$data);
-    $response = curl_exec($curl);
-    curl_close($curl);
-    $results = json_decode($response, true);
-    return $results;
-}
-
-# A function to verify if login is legit
-function check_state($state)
-{
-    if ($state == $_SESSION['state'])
-    {
-        return true;
-    }
-    else
-    {
-        # The login is not valid, so you should probably redirect them back to home page
-        return false;
-    }
-}
-
+# ALL VALUES ARE STORED IN SESSION!
+# RUN `echo var_export([$_SESSION]);` TO DISPLAY ALL THE VARIABLE NAMES AND VALUES.
+# FEEL FREE TO JOIN MY SERVER FOR ANY QUERIES - https://join.markis.dev
 
 ?>
+
+<html>
+<head>
+	<title>Demo - Discord Oauth</title>
+	<link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+	<header> <span class="logo">Demo - Discord Oauth</span> 
+		<span class="menu"> 
+		<?php
+			$auth_url = url($client_id, $redirect_url, $scopes);
+			if(isset($_SESSION['user'])) { 
+				echo '<a href="includes/logout.php"><button class="log-in">LOGOUT</button></a>'; 
+			}
+
+			else { 
+				echo "<a href='$auth_url'><button class='log-in'>LOGIN</button></a>"; 
+			}
+		?>
+		</span>
+	</header>
+	<h1 style="text-align: center;">A Simple Working Demo of the Script </h2>
+	<?php
+		if(!isset($_SESSION['user'])) {
+			echo "<h2 style='color:red; font-weight:900; text-align: center;'> LOGIN WITH THE LINK BELOW TO SEE IT WORK! </h3>";
+		}
+	?>
+	<h2> User Details :</h2>
+	<p> Name : <?php echo $_SESSION['username'] . '#'. $_SESSION['discrim']; ?></p>
+	<p> ID : <?php echo $_SESSION['user_id']; ?></p>
+	<p> Profile Picture : <img src="https://cdn.discordapp.com/avatars/<?php $extention = is_animated($_SESSION['user_avatar']); echo $_SESSION['user_id'] . "/" . $_SESSION['user_avatar'] . $extention; ?>"/></p>
+	<br>
+	<h2>User Response :</h2>
+		<div class="response-block"><p><?php echo json_encode($_SESSION['user']); ?></p></div>
+	<br>
+	<h2> User Guilds :</h2>
+		<table border="1">
+		<tr>
+			<th>NAME</th>
+			<th>ID</th>
+		</tr>
+		<?php
+		for($i = 0; $i < sizeof($_SESSION['guilds']); $i++) {
+			echo "<tr><td>";
+			echo $_SESSION['guilds'][$i]['name'];
+			echo "<td>";
+			echo $_SESSION['guilds'][$i]['id'];
+			echo "</td>";
+			echo "</tr></td>";
+		}
+		?>
+		</table>
+		<br>
+	<h2> User Guilds Response :</h2>
+		<div class="response-block"><p> <?php echo json_encode($_SESSION['guilds']); ?></p></div>
+</body>
+</html>
