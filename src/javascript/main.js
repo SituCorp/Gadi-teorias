@@ -6,5 +6,5 @@ $(function(){
       $('.nav-bar-links').addClass('active');
     }
   })
-})
-alert("Al continuar navegando aceptas que Gadi Teorias es el mejor canal")
+});
+
